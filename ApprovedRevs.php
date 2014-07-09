@@ -9,7 +9,7 @@ if ( !defined( 'MEDIAWIKI' ) ) die();
  * @author Yaron Koren
  */
 
-define( 'APPROVED_REVS_VERSION', '0.7' );
+define( 'APPROVED_REVS_VERSION', '1.0.0' );
 
 // credits
 $wgExtensionCredits['other'][] = array(
@@ -22,26 +22,57 @@ $wgExtensionCredits['other'][] = array(
 );
 
 // global variables
-$egApprovedRevsIP = dirname( __FILE__ ) . '/';
-$egApprovedRevsNamespaces = array( NS_MAIN, NS_USER, NS_PROJECT, NS_TEMPLATE, NS_HELP );
-$egApprovedRevsSelfOwnedNamespaces = array();
+$egApprovedRevsIP = __DIR__ . '/';
 $egApprovedRevsBlankIfUnapproved = false;
 $egApprovedRevsAutomaticApprovals = true;
 $egApprovedRevsShowApproveLatest = false;
 $egApprovedRevsShowNotApprovedMessage = false;
 
+// default permissions:
+//   * Group:sysop can approve anything approvable
+//   * Namespaces Main, User, Template, Help and Project are approvable
+//     with no additional approvers
+//   * No categories or pages are approvable (unless they're within one
+//     of the above namespaces)
+$egApprovedRevsPermissions = array (
+
+    'All Pages' => array( 'group' => 'sysop' ),
+
+    'Namespace Permissions' => array (
+        NS_MAIN => array(),
+        NS_USER => array(),
+        NS_TEMPLATE => array(),
+        NS_HELP => array(),
+        NS_PROJECT => array(),
+    ),
+
+    'Category Permissions' => array (),
+
+    'Page Permissions' => array ()
+
+);
+
+
+
 // internationalization
-$wgMessagesDirs['ApprovedRevs'] = __DIR__ . '/i18n';
+$wgMessagesDirs['ApprovedRevs'] = $egApprovedRevsIP . 'i18n';
 $wgExtensionMessagesFiles['ApprovedRevs'] = $egApprovedRevsIP . 'ApprovedRevs.i18n.php';
 $wgExtensionMessagesFiles['ApprovedRevsAlias'] = $egApprovedRevsIP . 'ApprovedRevs.alias.php';
 $wgExtensionMessagesFiles['ApprovedRevsMagic'] = $egApprovedRevsIP . 'ApprovedRevs.i18n.magic.php';
 
-// register all classes
+// autoload classes
 $wgAutoloadClasses['ApprovedRevs'] = $egApprovedRevsIP . 'ApprovedRevs_body.php';
 $wgAutoloadClasses['ApprovedRevsHooks'] = $egApprovedRevsIP . 'ApprovedRevs.hooks.php';
-$wgSpecialPages['ApprovedRevs'] = 'SpecialApprovedRevs';
-$wgAutoloadClasses['SpecialApprovedRevs'] = $egApprovedRevsIP . 'SpecialApprovedRevs.php';
-$wgSpecialPageGroups['ApprovedRevs'] = 'pages';
+$wgAutoloadClasses['SpecialApprovedPages'] = $egApprovedRevsIP . 'specials/SpecialApprovedPages.php';
+$wgAutoloadClasses['SpecialApprovedFiles'] = $egApprovedRevsIP . 'specials/SpecialApprovedFiles.php';
+$wgAutoloadClasses['SpecialApprovedPagesQueryPage'] = $egApprovedRevsIP . 'specials/SpecialApprovedPagesQueryPage.php';
+$wgAutoloadClasses['SpecialApprovedFilesQueryPage'] = $egApprovedRevsIP . 'specials/SpecialApprovedFilesQueryPage.php';
+
+// special pages
+$wgSpecialPages['ApprovedPages'] = 'SpecialApprovedPages';
+$wgSpecialPages['ApprovedFiles'] = 'SpecialApprovedFiles';
+$wgSpecialPageGroups['ApprovedPages'] = 'pages';
+$wgSpecialPageGroups['ApprovedFiles'] = 'pages';
 
 // hooks
 $wgHooks['ArticleEditUpdates'][] = 'ApprovedRevsHooks::updateLinksAfterEdit';
@@ -73,6 +104,15 @@ $wgHooks['sfHTMLBeforeForm'][] = 'ApprovedRevsHooks::addWarningToSFForm';
 $wgHooks['ArticleViewHeader'][] = 'ApprovedRevsHooks::setArticleHeader';
 $wgHooks['ArticleViewHeader'][] = 'ApprovedRevsHooks::displayNotApprovedHeader';
 
+// Approved File Revisions
+$wgHooks['UnknownAction'][] = 'ApprovedRevsHooks::setFileAsApproved';
+$wgHooks['UnknownAction'][] = 'ApprovedRevsHooks::unsetFileAsApproved';
+$wgHooks['ImagePageFileHistoryLine'][] = 'ApprovedRevsHooks::onImagePageFileHistoryLine';
+$wgHooks['BeforeParserFetchFileAndTitle'][] = 'ApprovedRevsHooks::modifyFileLinks';
+$wgHooks['ImagePageFindFile'][] = 'ApprovedRevsHooks::onImagePageFindFile';
+$wgHooks['FileDeleteComplete'][] = 'ApprovedRevsHooks::onFileDeleteComplete';
+
+
 // logging
 $wgLogTypes['approval'] = 'approval';
 $wgLogNames['approval'] = 'approvedrevs-logname';
@@ -81,8 +121,8 @@ $wgLogActions['approval/approve'] = 'approvedrevs-approveaction';
 $wgLogActions['approval/unapprove'] = 'approvedrevs-unapproveaction';
 
 // user rights
-$wgAvailableRights[] = 'approverevisions';
-$wgGroupPermissions['sysop']['approverevisions'] = true;
+$wgAvailableRights[] = 'approverevisions'; // jamesmontalvo3: do we remove this or leave it behind even though it's not being used anymore?
+$wgGroupPermissions['sysop']['approverevisions'] = true; // jamesmontalvo3: do we remove this or leave it behind even though it's not being used anymore?
 $wgAvailableRights[] = 'viewlinktolatest';
 $wgGroupPermissions['*']['viewlinktolatest'] = true;
 
